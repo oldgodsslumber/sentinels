@@ -1779,28 +1779,20 @@ function setPSGreenAbility(name){
 }
 function setPSGreenField(field,value){const g=S.creation.powerSource.greenAbility;if(g){g[field]=value;save();}}
 function pickedPowersForSlot(){
-  return S.creation.powerSource.powers.map(p=>({value:p.id,label:(p.customName||p.baseName)+(p.die?` (${p.die})`:'')}));
+  return S.creation.powerSource.powers.map(p=>({value:p.id,label:(p.customName||p.baseName)+(p.die?` (${p.die})`:''),cat:p.categoryId}));
 }
 function renderAbilityPicker(label,abilityRefs,onClick,extraNote){
-  // abilityRefs = list of {name, type, text, customName?, powerSlot?, qualitySlot?, picked}
+  // abilityRefs = list of {name, type, text, customName?, powerSlot?, qualitySlot?, picked,
+  //                       onCustomName, onPowerSlot, onQualitySlot, onPQSlot}
+  const powers=pickedPowersForSlot();
+  const allQuals=pickedQualitiesForCreationSlot();
   return abilityRefs.map(a=>{
     const sel=a.picked;
-    const isPQ=isPQAbility(a.text);
-    const usesPower=!isPQ&&a.text.includes('[power]');
-    const qualCat=isPQ?null:getAbilityQualityCat(a.text);
-    const usesQuality=!isPQ&&qualCat!==null;
-    const qualOpts=usesQuality?pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat):[];
-    let slotsHTML='';
-    if(isPQ){
-      const powers=pickedPowersForSlot();
-      const allQuals=pickedQualitiesForCreationSlot();
-      const cur=pqCurValue(a);
-      slotsHTML=(powers.length||allQuals.length)?`<div class="form-group" style="margin-bottom:0"><label>Power or Quality Used</label><select onchange="${a.onPQSlot.replace(/"/g,'&quot;')}">${pqSelectOptionsHTML(powers,allQuals,cur)}</select></div>`:`<div class="text-muted" style="font-size:11px">Pick a power or quality in an earlier step.</div>`;
-    } else if(usesPower){
-      slotsHTML=pickedPowersForSlot().length?`<div class="form-group" style="margin-bottom:0"><label>Power Used</label><select onchange="${a.onPowerSlot.replace(/"/g,'&quot;')}"><option value="">— pick power —</option>${pickedPowersForSlot().map(p=>`<option value="${esc(p.value)}" ${a.powerSlot===p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>`:'';
-    } else if(usesQuality){
-      slotsHTML=qualOpts.length?`<div class="form-group" style="margin-bottom:0"><label>Quality Used${qualCat?` (${esc(qualCat)})`:''}</label><select onchange="${a.onQualitySlot.replace(/"/g,'&quot;')}"><option value="">— pick quality —</option>${qualOpts.map(q=>`<option value="${esc(q.value)}" ${a.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:`<div class="text-muted" style="font-size:11px">Needs ${qualCat?esc(qualCat)+' ':''}quality — pick one in an earlier step.</div>`;
-    }
+    const slotsHTML=abilitySlotsHTML(a.text,sel?a:null,powers,allQuals,{
+      power:a.onPowerSlot.replace(/"/g,'&quot;'),
+      quality:a.onQualitySlot.replace(/"/g,'&quot;'),
+      pq:a.onPQSlot.replace(/"/g,'&quot;')
+    });
     return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
       <div onclick="${onClick(a.name).replace(/"/g,'&quot;')}" style="cursor:pointer">
         <div class="ab-name">${esc(a.name)} <span class="tag tag-${abilityTypeTag(a.type)}">${esc(abilityTypeLabel(a.type))}</span> ${sel?'<span class="text-accent">✓</span>':''}</div>
@@ -1899,7 +1891,7 @@ function setArchYellowField(name,field,value){const a=S.creation.archetype.yello
 function pickedPowersForArchSlot(){
   // Combine background powers (none yet at this step) + powerSource powers + archetype powers
   const all=[...S.creation.powerSource.powers,...S.creation.archetype.powers];
-  return all.map(p=>({value:p.id,label:(p.customName||p.baseName)+(p.die?` (${p.die})`:'')}));
+  return all.map(p=>({value:p.id,label:(p.customName||p.baseName)+(p.die?` (${p.die})`:''),cat:p.categoryId}));
 }
 function stepArchetype(){
   const c=S.creation.archetype;
@@ -1947,7 +1939,7 @@ function stepArchetype(){
         </div>`;
       }).join('')}`:''}
       ${item.greenAbilities.list.length?`<div class="label mt-3">Green Abilities (pick ${item.greenAbilities.pick})</div>${item.greenAbilities.note?`<div class="mb-1" style="font-size:11px;color:var(--muted)">${esc(item.greenAbilities.note)}</div>`:''}
-        ${item.greenAbilities.list.map(a=>{const sel=c.greenAbilities.find(x=>x.name===a.name)||a.required;const selObj=c.greenAbilities.find(x=>x.name===a.name);const isPQ=isPQAbility(a.text);const usesPower=!isPQ&&a.text.includes('[power]');const qualCat=isPQ?null:getAbilityQualityCat(a.text);const usesQuality=!isPQ&&qualCat!==null;const qualOpts=usesQuality?pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat):[];const archPowers=pickedPowersForArchSlot();const allQuals=pickedQualitiesForCreationSlot();let slots='';if(selObj){if(isPQ){slots=(archPowers.length||allQuals.length)?`<div class="form-group" style="margin-bottom:0"><label>Power or Quality Used</label><select onchange="setArchGreenPQ('${a.name.replace(/'/g,"\\'")}',this.value)">${pqSelectOptionsHTML(archPowers,allQuals,pqCurValue(selObj))}</select></div>`:`<div class="text-muted" style="font-size:11px">Pick a power or quality in an earlier step.</div>`;}else if(usesPower){slots=archPowers.length?`<div class="form-group" style="margin-bottom:0"><label>Power Used</label><select onchange="setArchGreenField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)"><option value="">— pick power —</option>${archPowers.map(p=>`<option value="${esc(p.value)}" ${selObj.powerSlot===p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>`:'';}else if(usesQuality){slots=qualOpts.length?`<div class="form-group" style="margin-bottom:0"><label>Quality Used${qualCat?` (${esc(qualCat)})`:''}</label><select onchange="setArchGreenField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)"><option value="">— pick quality —</option>${qualOpts.map(q=>`<option value="${esc(q.value)}" ${selObj.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:`<div class="text-muted" style="font-size:11px">Needs ${qualCat?esc(qualCat)+' ':''}quality — pick one in an earlier step.</div>`;}}return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
+        ${item.greenAbilities.list.map(a=>{const sel=c.greenAbilities.find(x=>x.name===a.name)||a.required;const selObj=c.greenAbilities.find(x=>x.name===a.name);const slots=abilitySlotsHTML(a.text,selObj,pickedPowersForArchSlot(),pickedQualitiesForCreationSlot(),{power:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,quality:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,pq:`setArchGreenPQ('${a.name.replace(/'/g,"\\'")}',this.value)`});return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
           <div onclick="${a.required?'':`toggleArchGreenAbility('${a.name.replace(/'/g,"\\'")}')`}" style="${a.required?'':'cursor:pointer'}">
             <div class="ab-name">${esc(a.name)} <span class="tag tag-${abilityTypeTag(a.type)}">${esc(abilityTypeLabel(a.type))}</span> ${a.required?'<span class="tag tag-die">required</span>':''} ${sel?'<span class="text-accent">✓</span>':''}</div>
             <div class="ab-text">${esc(a.text)}</div>
@@ -1958,7 +1950,7 @@ function stepArchetype(){
           </div>`:''}
         </div>`;}).join('')}`:''}
       ${item.yellowAbilities.list.length?`<div class="label mt-3">Yellow Abilities (pick ${item.yellowAbilities.pick})</div>${item.yellowAbilities.note?`<div class="mb-1" style="font-size:11px;color:var(--muted)">${esc(item.yellowAbilities.note)}</div>`:''}
-        ${item.yellowAbilities.list.map(a=>{const sel=c.yellowAbilities.find(x=>x.name===a.name);const isPQ=isPQAbility(a.text);const usesPower=!isPQ&&a.text.includes('[power]');const qualCat=isPQ?null:getAbilityQualityCat(a.text);const usesQuality=!isPQ&&qualCat!==null;const qualOpts=usesQuality?pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat):[];const archPowers=pickedPowersForArchSlot();const allQuals=pickedQualitiesForCreationSlot();let slots='';if(sel){if(isPQ){slots=(archPowers.length||allQuals.length)?`<div class="form-group" style="margin-bottom:0"><label>Power or Quality Used</label><select onchange="setArchYellowPQ('${a.name.replace(/'/g,"\\'")}',this.value)">${pqSelectOptionsHTML(archPowers,allQuals,pqCurValue(sel))}</select></div>`:`<div class="text-muted" style="font-size:11px">Pick a power or quality in an earlier step.</div>`;}else if(usesPower){slots=archPowers.length?`<div class="form-group" style="margin-bottom:0"><label>Power Used</label><select onchange="setArchYellowField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)"><option value="">— pick power —</option>${archPowers.map(p=>`<option value="${esc(p.value)}" ${sel.powerSlot===p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>`:'';}else if(usesQuality){slots=qualOpts.length?`<div class="form-group" style="margin-bottom:0"><label>Quality Used${qualCat?` (${esc(qualCat)})`:''}</label><select onchange="setArchYellowField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)"><option value="">— pick quality —</option>${qualOpts.map(q=>`<option value="${esc(q.value)}" ${sel.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:`<div class="text-muted" style="font-size:11px">Needs ${qualCat?esc(qualCat)+' ':''}quality — pick one in an earlier step.</div>`;}}return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
+        ${item.yellowAbilities.list.map(a=>{const sel=c.yellowAbilities.find(x=>x.name===a.name);const slots=abilitySlotsHTML(a.text,sel,pickedPowersForArchSlot(),pickedQualitiesForCreationSlot(),{power:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,quality:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,pq:`setArchYellowPQ('${a.name.replace(/'/g,"\\'")}',this.value)`});return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
           <div onclick="toggleArchYellowAbility('${a.name.replace(/'/g,"\\'")}')" style="cursor:pointer">
             <div class="ab-name">${esc(a.name)} <span class="tag tag-${abilityTypeTag(a.type)}">${esc(abilityTypeLabel(a.type))}</span> ${sel?'<span class="text-accent">✓</span>':''}</div>
             <div class="ab-text">${esc(a.text)}</div>
@@ -2036,7 +2028,7 @@ function getHeroQualityCategoriesInProgress(){
   return cats;
 }
 function pickedPowersForRedSlot(){
-  return getHeroAllPowers().map(p=>({value:p.id,label:(p.customName||p.baseName)+(p.die?` (${p.die})`:'')}));
+  return getHeroAllPowers().map(p=>({value:p.id,label:(p.customName||p.baseName)+(p.die?` (${p.die})`:''),cat:p.categoryId}));
 }
 // Qualities the user has picked so far in creation — usable for ability quality-slots.
 function pickedQualitiesForCreationSlot(){
@@ -2078,19 +2070,11 @@ function stepRedAbilities(){
     h+=`<div class="card-sm" style="${eligible?'':'opacity:.55'}"><div class="label" style="display:flex;align-items:center;gap:6px">${esc(label)} ${eligible?'<span class="zone-badge green">eligible</span>':'<span class="zone-badge out">need power/quality in this category</span>'}</div>`;
     list.forEach(a=>{
       const sel=c.extraRedAbilities.find(x=>x.category===key&&x.name===a.name);
-      const isPQ=isPQAbility(a.text);
-      const usesPower=!isPQ&&a.text.includes('[power]');
-      const qualCat=isPQ?null:getAbilityQualityCat(a.text);
-      const usesQuality=!isPQ&&qualCat!==null;
-      const qualOpts=usesQuality?pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat):[];
-      const redPowers=pickedPowersForRedSlot();
-      const allQuals=pickedQualitiesForCreationSlot();
-      let slots='';
-      if(sel){
-        if(isPQ){slots=(redPowers.length||allQuals.length)?`<div class="form-group" style="margin-bottom:0"><label>Power or Quality Used</label><select onchange="setRedPQ('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}',this.value)">${pqSelectOptionsHTML(redPowers,allQuals,pqCurValue(sel))}</select></div>`:`<div class="text-muted" style="font-size:11px">Pick a power or quality in an earlier step.</div>`;}
-        else if(usesPower){slots=redPowers.length?`<div class="form-group" style="margin-bottom:0"><label>Power Used</label><select onchange="setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','powerSlot',this.value)"><option value="">— pick power —</option>${redPowers.map(p=>`<option value="${esc(p.value)}" ${sel.powerSlot===p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>`:'';}
-        else if(usesQuality){slots=qualOpts.length?`<div class="form-group" style="margin-bottom:0"><label>Quality Used${qualCat?` (${esc(qualCat)})`:''}</label><select onchange="setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','qualitySlot',this.value)"><option value="">— pick quality —</option>${qualOpts.map(q=>`<option value="${esc(q.value)}" ${sel.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:`<div class="text-muted" style="font-size:11px">Needs ${qualCat?esc(qualCat)+' ':''}quality — pick one in an earlier step.</div>`;}
-      }
+      const slots=abilitySlotsHTML(a.text,sel,pickedPowersForRedSlot(),pickedQualitiesForCreationSlot(),{
+        power:`setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','powerSlot',this.value)`,
+        quality:`setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','qualitySlot',this.value)`,
+        pq:`setRedPQ('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}',this.value)`
+      });
       h+=`<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''};${eligible?'':'pointer-events:none'}">
         <div onclick="toggleExtraRed('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
           <div class="ab-name">${esc(a.name)} <span class="tag tag-${abilityTypeTag(a.type)}">${esc(abilityTypeLabel(a.type))}</span> ${sel?'<span class="text-accent">✓</span>':''}</div>
@@ -2125,6 +2109,10 @@ function setRetconField(field,value){S.creation.retcon[field]=value;save();rende
 function setRetconRedField(field,value){
   if(!S.creation.retcon.red)S.creation.retcon.red={};
   S.creation.retcon.red[field]=value;save();renderCreationStep();
+}
+function setRetconRedPQ(value){
+  if(!S.creation.retcon.red)S.creation.retcon.red={};
+  pqApplyToObj(S.creation.retcon.red,value);save();renderCreationStep();
 }
 // Aggregated lists used by retcon controls.
 function retconAllPowersList(){
@@ -2201,20 +2189,23 @@ function stepRetcon(){
       const ar=findById(ARCHETYPES,c.archetype.id);if(!ar)return '';
       const pool=sel.zone==='yellow'?ar.yellowAbilities.list:ar.greenAbilities.list;return (pool.find(x=>x.name===sel.name)?.text||'');
     })();
-    const isPQ=isPQAbility(tplText);
-    const usesPower=isPQ||tplText.includes('[power]');
-    const qualCat=isPQ?null:getAbilityQualityCat(tplText);
-    const usesQuality=isPQ||qualCat!==null;
-    const powers=retconAllPowersList();
-    const quals=pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat);
+    const info=getAbilitySlotInfo(tplText);
+    const usesPower=info.kind==='pq'||info.kind==='power'||info.kind==='powerCat';
+    const usesQuality=info.kind==='pq'||info.kind==='quality';
+    const powerCatLabel=info.kind==='powerCat'?prettyPowerCat(info.powerCat):'';
+    const qualityCatLabel=info.kind==='quality'&&info.qualityCats.length?info.qualityCats.join(' or '):'';
+    let powers=retconAllPowersList();
+    if(info.kind==='powerCat'){const idsInCat=new Set(POWERS.filter(p=>p.cat===info.powerCat).map(p=>p.id));powers=powers.filter(p=>idsInCat.has(p.id));}
+    const allQuals=pickedQualitiesForCreationSlot();
+    const quals=info.kind==='quality'&&info.qualityCats.length?allQuals.filter(q=>info.qualityCats.includes(q.cat)):allQuals;
     h+=`<div class="card-sm"><div class="label">Re-slot one ability</div>
       <div class="form-group"><label>Ability</label><select onchange="setRetconField('abilityKey',this.value)"><option value="">— pick ability —</option>${abs.map(a=>`<option value="${esc(a.key)}" ${r.abilityKey===a.key?'selected':''}>${esc(a.name)} (${esc(a.source)} · ${esc(a.zone)})</option>`).join('')}</select></div>
       ${sel?`<div class="text-muted" style="font-size:11px;margin-bottom:6px">${esc(tplText)}</div>
         ${usesPower||usesQuality?`<div class="form-group"><label>Use a different…</label>
           <select onchange="setRetconField('slotKind',this.value)">
             <option value="">— pick kind —</option>
-            ${usesPower?`<option value="power" ${r.slotKind==='power'?'selected':''}>Power</option>`:''}
-            ${usesQuality?`<option value="quality" ${r.slotKind==='quality'?'selected':''}>Quality${qualCat?` (${esc(qualCat)})`:''}</option>`:''}
+            ${usesPower?`<option value="power" ${r.slotKind==='power'?'selected':''}>Power${powerCatLabel?` (${esc(powerCatLabel)})`:''}</option>`:''}
+            ${usesQuality?`<option value="quality" ${r.slotKind==='quality'?'selected':''}>Quality${qualityCatLabel?` (${esc(qualityCatLabel)})`:''}</option>`:''}
           </select></div>
           ${r.slotKind==='power'?`<div class="form-group"><label>New Power</label><select onchange="setRetconField('slotValue',this.value)"><option value="">— pick power —</option>${powers.map(p=>`<option value="${esc(p.id)}" ${r.slotValue===p.id?'selected':''}>${esc(p.name)} (${p.die})</option>`).join('')}</select></div>`:''}
           ${r.slotKind==='quality'?`<div class="form-group"><label>New Quality</label><select onchange="setRetconField('slotValue',this.value)"><option value="">— pick quality —</option>${quals.map(q=>`<option value="${esc(q.value)}" ${r.slotValue===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:''}
@@ -2267,15 +2258,14 @@ function stepRetcon(){
       ${pickedCat?`<div class="form-group"><label>Ability</label><select onchange="setRetconRedField('name',this.value)"><option value="">— pick ability —</option>${(RED_ABILITIES_BY_CATEGORY[pickedCat]||[]).map(a=>`<option value="${esc(a.name)}" ${pickedName===a.name?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>`:''}
       ${pickedName?(()=>{
         const a=(RED_ABILITIES_BY_CATEGORY[pickedCat]||[]).find(x=>x.name===pickedName);if(!a)return '';
-        const usesPower=a.text.includes('[power]')||a.text.includes('[power/quality]');
-        const qualCat=getAbilityQualityCat(a.text);
-        const usesQuality=qualCat!==null;
-        const powers=retconAllPowersList();
-        const quals=pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat);
+        const slots=abilitySlotsHTML(a.text,r.red||{},pickedPowersForRedSlot(),pickedQualitiesForCreationSlot(),{
+          power:`setRetconRedField('powerSlot',this.value)`,
+          quality:`setRetconRedField('qualitySlot',this.value)`,
+          pq:`setRetconRedPQ(this.value)`
+        });
         return `<div class="text-muted" style="font-size:11px;margin-bottom:6px">${esc(a.text)}</div>
           <div class="form-group"><label>Custom Name</label><input type="text" value="${esc(r.red?.customName||'')}" oninput="setRetconRedField('customName',this.value)" placeholder="your hero's flavor"></div>
-          ${usesPower?`<div class="form-group"><label>Power Used</label><select onchange="setRetconRedField('powerSlot',this.value)"><option value="">— pick power —</option>${powers.map(p=>`<option value="${esc(p.id)}" ${r.red?.powerSlot===p.id?'selected':''}>${esc(p.name)} (${p.die})</option>`).join('')}</select></div>`:''}
-          ${usesQuality?(quals.length?`<div class="form-group"><label>Quality Used${qualCat?` (${esc(qualCat)})`:''}</label><select onchange="setRetconRedField('qualitySlot',this.value)"><option value="">— pick quality —</option>${quals.map(q=>`<option value="${esc(q.value)}" ${r.red?.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:`<div class="text-muted" style="font-size:11px">Needs ${qualCat?esc(qualCat)+' ':''}quality.</div>`):''}`;
+          ${slots}`;
       })():''}
     </div>`;
   }
@@ -2486,37 +2476,77 @@ function finishCreation(){
   S.creation=defaultCreation();
   save();renderHero();
 }
-// Render an ability's text with [power] / [quality] / [X quality] / [power/quality]
-// substituted from its assigned power and/or quality slots.
+// Render an ability's text with slot tokens substituted from its assigned slots
+// and any owned named-Hallmark powers.
 function renderAbilityText(a){
   let t=a.text;
   let powerName=null,qualityName=null;
   if(a.powerSlot&&S.hero){const p=S.hero.powers.find(x=>x.id===a.powerSlot);if(p)powerName=p.customName||p.baseName;}
   if(a.qualitySlot&&S.hero){const q=S.hero.qualities.find(x=>x.name===a.qualitySlot);if(q)qualityName=q.name;}
-  if(powerName)t=t.replace(/\[power\]/g,powerName);
+  if(powerName){
+    t=t.replace(/\[power\]/g,powerName);
+    t=t.replace(/\[(Psychic|Self Control|Athletic|Elemental|Hallmark|Intellectual|Materials|Mobility|Technological) power\]/g,powerName);
+  }
   if(qualityName){
+    t=t.replace(/\[(Mental|Physical|Social|Information) or (Mental|Physical|Social|Information) quality\]/g,qualityName);
     t=t.replace(/\[(Mental|Physical|Social|Information) quality\]/g,qualityName);
     t=t.replace(/\[quality\]/g,qualityName);
   }
   // [power/quality] — prefer power if assigned, else quality
   const pq=powerName||qualityName;
   if(pq)t=t.replace(/\[power\/quality\]/g,pq);
+  // Named Hallmark tokens auto-resolve to the owned power's name (if owned).
+  if(S.hero){
+    const named=[['[Inventions]','inventions'],['[Signature Vehicle]','signature_vehicle'],['[Signature Weaponry]','signature_weaponry'],['[Power Suit]','power_suit']];
+    for(const [tok,id] of named){
+      if(t.indexOf(tok)<0)continue;
+      const p=S.hero.powers.find(x=>x.id===id);
+      if(p)t=t.split(tok).join(p.customName||p.baseName);
+    }
+  }
   return t;
 }
 // Slot detection for ability text. The rulebook uses these tokens:
-//   [power]            — pick any power
-//   [quality]          — pick any quality
-//   [Mental quality]   — pick a quality of that specific category (also Physical/Social/Information)
-//   [power/quality]    — pick EITHER a power OR a quality (a single slot, not both)
-// `getAbilityQualityCat` only fires for *quality-only* tokens. `isPQAbility` flags the either-or case.
-function getAbilityQualityCat(text){
+//   [power]                       — pick any power
+//   [Psychic power] / [Self Control power] / etc.
+//                                 — pick a power of that specific category
+//   [quality]                     — pick any quality
+//   [Mental quality] (Physical/Social/Information)
+//                                 — pick a quality of that specific category
+//   [Physical or Mental quality]  — pick a quality from one of two categories
+//   [power/quality]               — pick EITHER a power OR a quality (one slot, player chooses)
+//   [Inventions] / [Signature Vehicle] / [Signature Weaponry] / [Power Suit]
+//                                 — auto-resolve to the named Hallmark power if owned (no picker)
+// `getAbilityQualityCats` returns the allowed categories (empty array = any). `getAbilityPowerCat`
+// returns a power category id when the text demands a category-specific power. `isPQAbility`
+// flags the either-or case.
+var ABILITY_POWER_CAT_NAMES={'Psychic':'psychic','Self Control':'self_control','Athletic':'athletic','Elemental':'elemental','Hallmark':'hallmark','Intellectual':'intellectual','Materials':'materials','Mobility':'mobility','Technological':'technological'};
+function prettyPowerCat(catId){const cat=POWER_CATEGORIES.find(c=>c.id===catId);return cat?cat.name:catId;}
+function getAbilityPowerCat(text){
   if(!text)return null;
-  const m=text.match(/\[(Mental|Physical|Social|Information) quality\]/);
-  if(m)return m[1];
-  if(text.includes('[quality]'))return '';
+  const m=text.match(/\[(Psychic|Self Control|Athletic|Elemental|Hallmark|Intellectual|Materials|Mobility|Technological) power\]/);
+  return m?ABILITY_POWER_CAT_NAMES[m[1]]:null;
+}
+function getAbilityQualityCats(text){
+  if(!text)return null;
+  const multi=text.match(/\[(Mental|Physical|Social|Information) or (Mental|Physical|Social|Information) quality\]/);
+  if(multi)return [multi[1],multi[2]];
+  const single=text.match(/\[(Mental|Physical|Social|Information) quality\]/);
+  if(single)return [single[1]];
+  if(text.includes('[quality]'))return [];
   return null;
 }
 function isPQAbility(text){return !!text&&text.includes('[power/quality]');}
+// Discriminated union describing what slot picker (if any) the ability needs.
+function getAbilitySlotInfo(text){
+  if(isPQAbility(text))return {kind:'pq'};
+  const pCat=getAbilityPowerCat(text);
+  if(pCat)return {kind:'powerCat',powerCat:pCat};
+  if(text&&text.includes('[power]'))return {kind:'power'};
+  const qCats=getAbilityQualityCats(text);
+  if(qCats)return {kind:'quality',qualityCats:qCats};
+  return {kind:'none'};
+}
 // Encode/decode the value used by combined (power-or-quality) selectors.
 function pqCurValue(obj){if(!obj)return '';if(obj.powerSlot)return 'p:'+obj.powerSlot;if(obj.qualitySlot)return 'q:'+obj.qualitySlot;return '';}
 function pqApplyToObj(obj,value){if(!obj)return;obj.powerSlot=value&&value.startsWith('p:')?value.slice(2):'';obj.qualitySlot=value&&value.startsWith('q:')?value.slice(2):'';}
@@ -2529,6 +2559,36 @@ function pqSelectOptionsHTML(powers,quals,curValue){
   return `<option value="">— pick power or quality —</option>`+
     (powers.length?`<optgroup label="Powers">${powers.map(p=>`<option value="p:${esc(p.value)}" ${curValue==='p:'+p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</optgroup>`:'')+
     (quals.length?`<optgroup label="Qualities">${quals.map(q=>`<option value="q:${esc(q.value)}" ${curValue==='q:'+q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</optgroup>`:'');
+}
+// Shared slot-picker renderer. `setters` provides the onchange JS strings for each variant
+// ({power, quality, pq}). Returns an HTML fragment, or '' when no slot is needed/available.
+function abilitySlotsHTML(text,sel,powers,allQuals,setters){
+  if(!sel)return '';
+  const info=getAbilitySlotInfo(text);
+  if(info.kind==='none')return '';
+  if(info.kind==='pq'){
+    return (powers.length||allQuals.length)
+      ? `<div class="form-group" style="margin-bottom:0"><label>Power or Quality Used</label><select onchange="${setters.pq}">${pqSelectOptionsHTML(powers,allQuals,pqCurValue(sel))}</select></div>`
+      : `<div class="text-muted" style="font-size:11px">Pick a power or quality in an earlier step.</div>`;
+  }
+  if(info.kind==='powerCat'){
+    const filtered=powers.filter(p=>p.cat===info.powerCat);
+    const catLabel=prettyPowerCat(info.powerCat);
+    if(!filtered.length)return `<div class="text-muted" style="font-size:11px">Needs a ${esc(catLabel)} power — pick one in an earlier step.</div>`;
+    return `<div class="form-group" style="margin-bottom:0"><label>Power Used (${esc(catLabel)})</label><select onchange="${setters.power}"><option value="">— pick power —</option>${filtered.map(p=>`<option value="${esc(p.value)}" ${sel.powerSlot===p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>`;
+  }
+  if(info.kind==='power'){
+    if(!powers.length)return '';
+    return `<div class="form-group" style="margin-bottom:0"><label>Power Used</label><select onchange="${setters.power}"><option value="">— pick power —</option>${powers.map(p=>`<option value="${esc(p.value)}" ${sel.powerSlot===p.value?'selected':''}>${esc(p.label)}</option>`).join('')}</select></div>`;
+  }
+  if(info.kind==='quality'){
+    const cats=info.qualityCats;
+    const filtered=cats.length?allQuals.filter(q=>cats.includes(q.cat)):allQuals;
+    const lbl=cats.length?`Quality Used (${cats.join(' or ')})`:'Quality Used';
+    if(!filtered.length)return `<div class="text-muted" style="font-size:11px">Needs ${cats.length?cats.join(' or ')+' ':''}quality — pick one in an earlier step.</div>`;
+    return `<div class="form-group" style="margin-bottom:0"><label>${esc(lbl)}</label><select onchange="${setters.quality}"><option value="">— pick quality —</option>${filtered.map(q=>`<option value="${esc(q.value)}" ${sel.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`;
+  }
+  return '';
 }
 
 // ═══════════════════════════════════════════════════════════
