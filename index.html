@@ -1138,6 +1138,10 @@ function defaultCreation(){
     // each red ability: {category, name, customName, powerSlot}
     extraRedAbilities:[],
     healthD4Value:null, // null until user rolls or takes 4
+    // Page 112: one optional retcon tweak applied at finalize. shape = {type, ...payload}.
+    // type ∈ null | 'swap_power_dice' | 'swap_quality_dice' | 'reslot_ability'
+    //         | 'add_d6' | 'red_status_up' | 'change_principle' | 'extra_red'
+    retcon:{type:null},
     finishing:{name:'',alias:'',backstory:'',appearance:''},
     // rolls per step: {dice:['d8','d8'], values:[3,7]}
     rolls:{}
@@ -1259,6 +1263,7 @@ function ensureSchema(){
     // Old schema (pre-rework) detected — reset wizard state. Slot/theme survive.
     S.creation=defaultCreation();
   }
+  if(S.creation&&!S.creation.retcon)S.creation.retcon={type:null};
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2087,19 +2092,179 @@ function stepRedAbilities(){
 }
 
 // — STEP 5: RETCON —
+// Page 112: pick ONE retcon tweak applied at finalize. The wizard does NOT
+// navigate back to prior steps — every option is resolved inline here.
+var RETCON_OPTIONS=[
+  {type:'swap_power_dice',  label:'Swap any two dice within your powers'},
+  {type:'swap_quality_dice',label:'Swap any two dice within your qualities'},
+  {type:'reslot_ability',   label:'Choose a different power or quality used in one of your abilities'},
+  {type:'add_d6',           label:'Add a d6 power or quality from any category'},
+  {type:'red_status_up',    label:'Increase your Red status die by one size (max d12)'},
+  {type:'change_principle', label:'Change either of your principles to any other principle'},
+  {type:'extra_red',        label:'Gain an extra Red ability'}
+];
+function setRetconType(t){S.creation.retcon={type:t||null};save();renderCreationStep();}
+function setRetconField(field,value){S.creation.retcon[field]=value;save();renderCreationStep();}
+function setRetconRedField(field,value){
+  if(!S.creation.retcon.red)S.creation.retcon.red={};
+  S.creation.retcon.red[field]=value;save();renderCreationStep();
+}
+// Aggregated lists used by retcon controls.
+function retconAllPowersList(){
+  const out=[];
+  S.creation.powerSource.powers.forEach(p=>{out.push({id:p.id,name:p.customName||p.baseName,die:p.die||'d8'});});
+  S.creation.archetype.powers.forEach(p=>{
+    const ex=out.find(x=>x.id===p.id);
+    if(ex){if(p.die&&parseDie(p.die)>parseDie(ex.die))ex.die=p.die;}
+    else out.push({id:p.id,name:p.customName||p.baseName,die:p.die||'d8'});
+  });
+  return out;
+}
+function retconAllQualitiesList(){
+  const out=[];
+  S.creation.background.qualities.forEach(q=>{if(q&&!q.startsWith('{'))out.push({name:q,die:S.creation.background.qualityDice[q]||'d8'});});
+  S.creation.archetype.extraQualities.forEach(q=>{out.push({name:q,die:S.creation.archetype.qualityDice[q]||'d8'});});
+  if(S.creation.personality.customQuality){const pe=findById(PERSONALITIES,S.creation.personality.id);out.push({name:S.creation.personality.customQuality,die:pe?.customQualityDie||'d4'});}
+  return out;
+}
+function retconBumpDie(d){const sizes=['d4','d6','d8','d10','d12'];const i=sizes.indexOf(d);return i<0||i>=sizes.length-1?d:sizes[i+1];}
+function retconAllPickedAbilities(){
+  // Returns refs to the actual creation-state objects so reslot edits persist.
+  const out=[];
+  S.creation.powerSource.yellowAbilities.forEach(a=>out.push({key:`ps_y:${a.name}`,ref:a,name:a.name,zone:'yellow',source:'Power Source'}));
+  if(S.creation.powerSource.greenAbility){const a=S.creation.powerSource.greenAbility;out.push({key:`ps_g:${a.name}`,ref:a,name:a.name,zone:'green',source:'Power Source'});}
+  S.creation.archetype.greenAbilities.forEach(a=>out.push({key:`ar_g:${a.name}`,ref:a,name:a.name,zone:'green',source:'Archetype'}));
+  S.creation.archetype.yellowAbilities.forEach(a=>out.push({key:`ar_y:${a.name}`,ref:a,name:a.name,zone:'yellow',source:'Archetype'}));
+  S.creation.extraRedAbilities.forEach(a=>out.push({key:`red:${a.category}:${a.name}`,ref:a,name:a.name,zone:'red',source:'Red'}));
+  return out;
+}
+function retconFindAbilityByKey(key){return retconAllPickedAbilities().find(x=>x.key===key)||null;}
+function applyRetconReslot(){
+  const r=S.creation.retcon;if(r.type!=='reslot_ability'||!r.abilityKey)return;
+  const a=retconFindAbilityByKey(r.abilityKey);if(!a)return;
+  if(r.slotKind==='power'){a.ref.powerSlot=r.slotValue||'';}
+  else if(r.slotKind==='quality'){a.ref.qualitySlot=r.slotValue||'';}
+  save();renderCreationStep();
+}
 function stepRetcon(){
-  return `<div class="label">Retcon (Optional)</div>
-    <div class="mb-2" style="font-size:12px;color:var(--muted)">Last chance to swap any choice before locking in your hero. You can edit anything later from the hero sheet too.</div>
-    <div class="card-sm"><div class="label">Quick Edits</div>
-    <div class="grid-2">
-      <button class="btn btn-secondary btn-sm" onclick="setStep(0)">Edit Background</button>
-      <button class="btn btn-secondary btn-sm" onclick="setStep(1)">Edit Powers</button>
-      <button class="btn btn-secondary btn-sm" onclick="setStep(2)">Edit Archetype</button>
-      <button class="btn btn-secondary btn-sm" onclick="setStep(3)">Edit Personality</button>
-    </div></div>
-    <div class="card-sm"><div class="label">Power Renames</div>
-    ${S.creation.powerSource.powers.map(p=>`<div class="form-group"><label>${esc(p.baseName)}</label><input type="text" value="${esc(p.customName)}" oninput="setPSPowerCustomName('${p.id}',this.value)"></div>`).join('')||'<div class="text-muted" style="font-size:12px">No powers selected yet.</div>'}
+  const c=S.creation,r=c.retcon||{type:null};
+  let h=`<div class="label">Retcon (Optional)</div>
+    <div class="mb-2" style="font-size:12px;color:var(--muted)">Comics get retconned all the time. Pick <b>one</b> tweak — applied when you finalize. Or skip it.</div>
+    <div class="card-sm"><div class="label">Choose one retcon</div>
+      <select onchange="setRetconType(this.value)">
+        <option value="">— skip retcon —</option>
+        ${RETCON_OPTIONS.map(o=>`<option value="${o.type}" ${r.type===o.type?'selected':''}>${esc(o.label)}</option>`).join('')}
+      </select>
     </div>`;
+  if(r.type==='swap_power_dice'){
+    const list=retconAllPowersList();
+    h+=`<div class="card-sm"><div class="label">Swap two power dice</div>
+      ${list.length<2?'<div class="text-muted" style="font-size:12px">You need at least two powers with dice to swap.</div>':`
+      <div class="grid-2">
+        <div class="form-group"><label>First power</label><select onchange="setRetconField('a',this.value)"><option value="">— pick —</option>${list.map(p=>`<option value="${esc(p.id)}" ${r.a===p.id?'selected':''}>${esc(p.name)} (${p.die})</option>`).join('')}</select></div>
+        <div class="form-group"><label>Second power</label><select onchange="setRetconField('b',this.value)"><option value="">— pick —</option>${list.map(p=>`<option value="${esc(p.id)}" ${r.b===p.id?'selected':''}>${esc(p.name)} (${p.die})</option>`).join('')}</select></div>
+      </div>`}
+    </div>`;
+  } else if(r.type==='swap_quality_dice'){
+    const list=retconAllQualitiesList();
+    h+=`<div class="card-sm"><div class="label">Swap two quality dice</div>
+      ${list.length<2?'<div class="text-muted" style="font-size:12px">You need at least two qualities with dice to swap.</div>':`
+      <div class="grid-2">
+        <div class="form-group"><label>First quality</label><select onchange="setRetconField('a',this.value)"><option value="">— pick —</option>${list.map(q=>`<option value="${esc(q.name)}" ${r.a===q.name?'selected':''}>${esc(q.name)} (${q.die})</option>`).join('')}</select></div>
+        <div class="form-group"><label>Second quality</label><select onchange="setRetconField('b',this.value)"><option value="">— pick —</option>${list.map(q=>`<option value="${esc(q.name)}" ${r.b===q.name?'selected':''}>${esc(q.name)} (${q.die})</option>`).join('')}</select></div>
+      </div>`}
+    </div>`;
+  } else if(r.type==='reslot_ability'){
+    const abs=retconAllPickedAbilities();
+    const sel=r.abilityKey?retconFindAbilityByKey(r.abilityKey):null;
+    const tplText=(()=>{
+      if(!sel)return '';
+      if(sel.zone==='red'){const list=RED_ABILITIES_BY_CATEGORY[sel.ref.category];return list?(list.find(x=>x.name===sel.name)?.text||''):'';}
+      if(sel.source==='Power Source'){const ps=findById(POWER_SOURCES,c.powerSource.id);if(!ps)return '';const pool=sel.zone==='yellow'?ps.yellowAbilities:ps.greenAbilities;return (pool.find(x=>x.name===sel.name)?.text||'');}
+      const ar=findById(ARCHETYPES,c.archetype.id);if(!ar)return '';
+      const pool=sel.zone==='yellow'?ar.yellowAbilities.list:ar.greenAbilities.list;return (pool.find(x=>x.name===sel.name)?.text||'');
+    })();
+    const usesPower=tplText.includes('[power]')||tplText.includes('[power/quality]');
+    const qualCat=getAbilityQualityCat(tplText);
+    const usesQuality=qualCat!==null;
+    const powers=retconAllPowersList();
+    const quals=pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat);
+    h+=`<div class="card-sm"><div class="label">Re-slot one ability</div>
+      <div class="form-group"><label>Ability</label><select onchange="setRetconField('abilityKey',this.value)"><option value="">— pick ability —</option>${abs.map(a=>`<option value="${esc(a.key)}" ${r.abilityKey===a.key?'selected':''}>${esc(a.name)} (${esc(a.source)} · ${esc(a.zone)})</option>`).join('')}</select></div>
+      ${sel?`<div class="text-muted" style="font-size:11px;margin-bottom:6px">${esc(tplText)}</div>
+        ${usesPower||usesQuality?`<div class="form-group"><label>Use a different…</label>
+          <select onchange="setRetconField('slotKind',this.value)">
+            <option value="">— pick kind —</option>
+            ${usesPower?`<option value="power" ${r.slotKind==='power'?'selected':''}>Power</option>`:''}
+            ${usesQuality?`<option value="quality" ${r.slotKind==='quality'?'selected':''}>Quality${qualCat?` (${esc(qualCat)})`:''}</option>`:''}
+          </select></div>
+          ${r.slotKind==='power'?`<div class="form-group"><label>New Power</label><select onchange="setRetconField('slotValue',this.value)"><option value="">— pick power —</option>${powers.map(p=>`<option value="${esc(p.id)}" ${r.slotValue===p.id?'selected':''}>${esc(p.name)} (${p.die})</option>`).join('')}</select></div>`:''}
+          ${r.slotKind==='quality'?`<div class="form-group"><label>New Quality</label><select onchange="setRetconField('slotValue',this.value)"><option value="">— pick quality —</option>${quals.map(q=>`<option value="${esc(q.value)}" ${r.slotValue===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:''}
+          ${r.slotKind&&r.slotValue?`<button class="btn btn-secondary btn-sm" onclick="applyRetconReslot()">Apply re-slot to ability</button>`:''}
+        `:'<div class="text-muted" style="font-size:11px">This ability doesn\'t use a [power] or [quality] slot.</div>'}`:''}
+    </div>`;
+  } else if(r.type==='add_d6'){
+    const kind=r.kind||'';
+    h+=`<div class="card-sm"><div class="label">Add a d6 power or quality</div>
+      <div class="form-group"><label>Type</label><select onchange="setRetconField('kind',this.value)">
+        <option value="">— pick —</option>
+        <option value="power" ${kind==='power'?'selected':''}>Power</option>
+        <option value="quality" ${kind==='quality'?'selected':''}>Quality</option>
+      </select></div>`;
+    if(kind==='power'){
+      const owned=new Set(retconAllPowersList().map(p=>p.id));
+      h+=`<div class="form-group"><label>Power</label><select onchange="setRetconField('id',this.value)"><option value="">— pick power —</option>${POWERS.filter(p=>!owned.has(p.id)).map(p=>{const cat=POWER_CATEGORIES.find(c=>c.id===p.cat);return `<option value="${p.id}" ${r.id===p.id?'selected':''}>${esc(p.name)} — ${esc(cat?cat.name:p.cat)}</option>`;}).join('')}</select></div>`;
+    } else if(kind==='quality'){
+      const owned=new Set(retconAllQualitiesList().map(q=>q.name));
+      h+=`<div class="form-group"><label>Quality</label><select onchange="setRetconField('name',this.value)"><option value="">— pick quality —</option>${QUALITIES.filter(q=>!owned.has(q.name)).map(q=>`<option value="${esc(q.name)}" ${r.name===q.name?'selected':''}>${esc(q.name)} — ${esc(q.cat)}</option>`).join('')}</select></div>`;
+    }
+    h+=`</div>`;
+  } else if(r.type==='red_status_up'){
+    const pe=findById(PERSONALITIES,c.personality.id);
+    const cur=pe?.statusDice?.red||'d4';
+    const next=retconBumpDie(cur);
+    h+=`<div class="card-sm"><div class="label">Increase Red status die</div>
+      <div style="font-size:13px">Current: <span class="die-badge ${cur}">${cur}</span> → New: <span class="die-badge ${next}">${next}</span> ${cur===next?'<span class="text-muted">(already at max)</span>':''}</div>
+      <div class="text-muted" style="font-size:11px;margin-top:6px">Applied automatically when you finalize.</div>
+    </div>`;
+  } else if(r.type==='change_principle'){
+    const pBg=c.background.principleId?findById(PRINCIPLES,c.background.principleId):null;
+    const pAr=c.archetype.principleId?findById(PRINCIPLES,c.archetype.principleId):null;
+    const pPe=c.personality.principleId?findById(PRINCIPLES,c.personality.principleId):null;
+    const sources=[
+      {key:'background',label:'Background',cur:pBg},
+      {key:'archetype', label:'Archetype', cur:pAr},
+      {key:'personality',label:'Personality',cur:pPe}
+    ].filter(x=>x.cur);
+    h+=`<div class="card-sm"><div class="label">Change a principle</div>
+      <div class="form-group"><label>Which principle?</label><select onchange="setRetconField('source',this.value)"><option value="">— pick —</option>${sources.map(s=>`<option value="${s.key}" ${r.source===s.key?'selected':''}>${esc(s.label)}: ${esc(s.cur.name)} (${esc(s.cur.cat)})</option>`).join('')}</select></div>
+      ${r.source?`<div class="form-group"><label>New principle</label><select onchange="setRetconField('principleId',this.value)"><option value="">— pick principle —</option>${PRINCIPLES.map(p=>`<option value="${p.id}" ${r.principleId===p.id?'selected':''}>${esc(p.name)} (${esc(p.cat)})</option>`).join('')}</select></div>`:''}
+    </div>`;
+  } else if(r.type==='extra_red'){
+    const pickedCat=r.red?.category||'';
+    const pickedName=r.red?.name||'';
+    const allCats=Object.keys(RED_ABILITIES_BY_CATEGORY);
+    h+=`<div class="card-sm"><div class="label">Gain an extra Red ability</div>
+      <div class="form-group"><label>Category</label><select onchange="setRetconRedField('category',this.value)"><option value="">— pick category —</option>${allCats.map(k=>`<option value="${esc(k)}" ${pickedCat===k?'selected':''}>${esc(k)}</option>`).join('')}</select></div>
+      ${pickedCat?`<div class="form-group"><label>Ability</label><select onchange="setRetconRedField('name',this.value)"><option value="">— pick ability —</option>${(RED_ABILITIES_BY_CATEGORY[pickedCat]||[]).map(a=>`<option value="${esc(a.name)}" ${pickedName===a.name?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>`:''}
+      ${pickedName?(()=>{
+        const a=(RED_ABILITIES_BY_CATEGORY[pickedCat]||[]).find(x=>x.name===pickedName);if(!a)return '';
+        const usesPower=a.text.includes('[power]')||a.text.includes('[power/quality]');
+        const qualCat=getAbilityQualityCat(a.text);
+        const usesQuality=qualCat!==null;
+        const powers=retconAllPowersList();
+        const quals=pickedQualitiesForCreationSlot().filter(q=>!qualCat||q.cat===qualCat);
+        return `<div class="text-muted" style="font-size:11px;margin-bottom:6px">${esc(a.text)}</div>
+          <div class="form-group"><label>Custom Name</label><input type="text" value="${esc(r.red?.customName||'')}" oninput="setRetconRedField('customName',this.value)" placeholder="your hero's flavor"></div>
+          ${usesPower?`<div class="form-group"><label>Power Used</label><select onchange="setRetconRedField('powerSlot',this.value)"><option value="">— pick power —</option>${powers.map(p=>`<option value="${esc(p.id)}" ${r.red?.powerSlot===p.id?'selected':''}>${esc(p.name)} (${p.die})</option>`).join('')}</select></div>`:''}
+          ${usesQuality?(quals.length?`<div class="form-group"><label>Quality Used${qualCat?` (${esc(qualCat)})`:''}</label><select onchange="setRetconRedField('qualitySlot',this.value)"><option value="">— pick quality —</option>${quals.map(q=>`<option value="${esc(q.value)}" ${r.red?.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`:`<div class="text-muted" style="font-size:11px">Needs ${qualCat?esc(qualCat)+' ':''}quality.</div>`):''}`;
+      })():''}
+    </div>`;
+  }
+  h+=`<div class="card-sm"><div class="label">Power Renames</div>
+    ${S.creation.powerSource.powers.map(p=>`<div class="form-group"><label>${esc(p.baseName)}</label><input type="text" value="${esc(p.customName)}" oninput="setPSPowerCustomName('${p.id}',this.value)"></div>`).join('')||'<div class="text-muted" style="font-size:12px">No powers selected yet.</div>'}
+  </div>`;
+  return h;
 }
 
 // — STEP 6: HEALTH —
@@ -2253,16 +2418,50 @@ function finishCreation(){
   });
   // Out ability from personality
   if(pe?.outAbility)abilities.push({id:'out_'+pe.id,zone:'out',type:'action',action:'boost',die:'free',name:`${pe.name} (Out)`,baseName:`${pe.name} (Out)`,text:pe.outAbility,powerSlot:null,source:'personality'});
-  // Health — calculated, not picked
-  const hp=getHealthPieces();
-  const total=hp.redVal+hp.bestVal+(c.healthD4Value||4);
+  // Status dice — start from personality, then apply retcon below if applicable
+  const statusDice=pe?{...pe.statusDice}:{green:'d8',yellow:'d6',red:'d4'};
+  // Retcon (page 112) — apply the single chosen tweak (reslot_ability already
+  // mutated creation state when applied; the others happen here).
+  const r=c.retcon||{type:null};
+  if(r.type==='swap_power_dice'&&r.a&&r.b&&r.a!==r.b){
+    const A=powers.find(p=>p.id===r.a),B=powers.find(p=>p.id===r.b);
+    if(A&&B){const t=A.die;A.die=B.die;B.die=t;}
+  } else if(r.type==='swap_quality_dice'&&r.a&&r.b&&r.a!==r.b){
+    const A=qualities.find(q=>q.name===r.a),B=qualities.find(q=>q.name===r.b);
+    if(A&&B){const t=A.die;A.die=B.die;B.die=t;}
+  } else if(r.type==='add_d6'){
+    if(r.kind==='power'&&r.id&&!powers.find(p=>p.id===r.id)){
+      const tpl=findById(POWERS,r.id);
+      if(tpl)powers.push({id:tpl.id,baseName:tpl.name,customName:tpl.name,categoryId:tpl.cat,desc:tpl.desc,die:'d6'});
+    } else if(r.kind==='quality'&&r.name&&!qualities.find(q=>q.name===r.name)){
+      qualities.push({name:r.name,die:'d6',source:'retcon'});
+    }
+  } else if(r.type==='red_status_up'){
+    statusDice.red=retconBumpDie(statusDice.red);
+  } else if(r.type==='change_principle'&&r.source&&r.principleId){
+    const newP=findById(PRINCIPLES,r.principleId);
+    if(newP){
+      const idx=principles.findIndex(p=>p.source===r.source);
+      if(idx>=0)principles[idx]={...newP,source:r.source};else principles.push({...newP,source:r.source});
+    }
+  } else if(r.type==='extra_red'&&r.red?.category&&r.red?.name){
+    const list=RED_ABILITIES_BY_CATEGORY[r.red.category];
+    if(list){const a=list.find(x=>x.name===r.red.name);if(a)abilities.push(buildHeroAbility(a,'red','retcon',r.red.customName,r.red.powerSlot,r.red.qualitySlot));}
+  }
+  // Health — recomputed from the (possibly retcon-modified) powers/qualities/redDie
+  const athPwr=powers.filter(p=>p.categoryId==='athletic'&&p.die);
+  const bestAth=athPwr.reduce((m,p)=>parseDie(p.die)>parseDie(m||'d0')?p.die:m,null);
+  const mentalQ=qualities.filter(q=>QUALITIES.find(x=>x.name===q.name)?.cat==='Mental');
+  const bestM=mentalQ.reduce((m,q)=>parseDie(q.die)>parseDie(m||'d0')?q.die:m,null);
+  const bestVal=Math.max(bestAth?parseDie(bestAth):0,bestM?parseDie(bestM):0,4);
+  const total=parseDie(statusDice.red)+bestVal+(c.healthD4Value||4);
   const hr=findHealthChartRow(total);
   const status={greenMin:hr.green[0],greenMax:hr.green[1],yellowMin:hr.yellow[0],yellowMax:hr.yellow[1],redMin:hr.red[0],redMax:hr.red[1],currentHP:hr.max,max:hr.max};
   S.hero={
     name:c.finishing.name,alias:c.finishing.alias,appearance:c.finishing.appearance,backstory:c.finishing.backstory,
     backgroundId:bg?.id,powerSourceId:ps?.id,archetypeId:ar?.id,personalityId:pe?.id,
     principles,qualities,powers,abilities,status,
-    statusDice:pe?.statusDice||{green:'d8',yellow:'d6',red:'d4'},
+    statusDice,
     heroPoints:0,maxHeroPoints:5,heroPointLog:[]
   };
   S.scene.heroHP=hr.max;S.scene.heroMax=hr.max;
