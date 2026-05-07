@@ -3158,6 +3158,67 @@ function exportHeroSheet(){
 }
 
 // ═══════════════════════════════════════════════════════════
+// TOUCH DRAG-AND-DROP SHIM
+// HTML5 drag-and-drop isn't dispatched for touch input on iOS/Android.
+// Watch touch events on draggable elements and synthesize the standard
+// dragstart/dragover/dragleave/drop/dragend events with a minimal
+// dataTransfer shim so the existing inline handlers keep working.
+// ═══════════════════════════════════════════════════════════
+(function installTouchDnd(){
+  if(!('ontouchstart' in window)&&!(navigator.maxTouchPoints>0))return;
+  let src=null,dt=null,lastOver=null,ghost=null,sx=0,sy=0,active=false;
+  const THRESHOLD=8;
+  function makeDT(){const m={};return{setData:(t,v)=>{m[t]=String(v);},getData:t=>m[t]||'',clearData:t=>{if(t)delete m[t];else for(const k in m)delete m[k];},setDragImage(){},effectAllowed:'all',dropEffect:'move',types:[]};}
+  function fire(el,type,x,y){
+    if(!el)return null;
+    const ev=new Event(type,{bubbles:true,cancelable:true});
+    Object.defineProperty(ev,'dataTransfer',{value:dt,configurable:true});
+    Object.defineProperty(ev,'clientX',{value:x,configurable:true});
+    Object.defineProperty(ev,'clientY',{value:y,configurable:true});
+    el.dispatchEvent(ev);
+    return ev;
+  }
+  function findDraggable(node){while(node&&node!==document.body){if(node.getAttribute&&node.getAttribute('draggable')==='true')return node;node=node.parentNode;}return null;}
+  function elemAt(x,y){if(ghost)ghost.style.display='none';const el=document.elementFromPoint(x,y);if(ghost)ghost.style.display='';return el;}
+  document.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1)return;
+    const el=findDraggable(e.target);if(!el)return;
+    src=el;const t=e.touches[0];sx=t.clientX;sy=t.clientY;dt=makeDT();active=false;lastOver=null;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!src)return;
+    const t=e.touches[0];
+    if(!active){
+      if(Math.abs(t.clientX-sx)<THRESHOLD&&Math.abs(t.clientY-sy)<THRESHOLD)return;
+      active=true;
+      fire(src,'dragstart',sx,sy);
+      const r=src.getBoundingClientRect();
+      ghost=src.cloneNode(true);
+      ghost.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;pointer-events:none;opacity:.85;z-index:9999;transform:scale(1.1);box-shadow:0 4px 14px rgba(0,0,0,.5)`;
+      document.body.appendChild(ghost);
+    }
+    e.preventDefault();
+    if(ghost){ghost.style.left=(t.clientX-ghost.offsetWidth/2)+'px';ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';}
+    const over=elemAt(t.clientX,t.clientY);
+    if(over!==lastOver){if(lastOver)fire(lastOver,'dragleave',t.clientX,t.clientY);lastOver=over;}
+    if(over)fire(over,'dragover',t.clientX,t.clientY);
+  },{passive:false});
+  function finish(e){
+    if(!src){return;}
+    if(active){
+      const t=(e.changedTouches&&e.changedTouches[0])||{clientX:sx,clientY:sy};
+      const drop=elemAt(t.clientX,t.clientY);
+      if(drop)fire(drop,'drop',t.clientX,t.clientY);
+      fire(src,'dragend',t.clientX,t.clientY);
+    }
+    if(ghost){ghost.remove();ghost=null;}
+    src=null;dt=null;lastOver=null;active=false;
+  }
+  document.addEventListener('touchend',finish);
+  document.addEventListener('touchcancel',finish);
+})();
+
+// ═══════════════════════════════════════════════════════════
 // THEME PICKER WIRING
 // ═══════════════════════════════════════════════════════════
 document.querySelectorAll('.theme-swatch').forEach(b=>{b.addEventListener('click',()=>{applyTheme(b.dataset.theme||'');});});
