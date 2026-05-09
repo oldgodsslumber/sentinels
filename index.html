@@ -1488,7 +1488,13 @@ function resetStepSelection(stepKey,id,manual){
 // Render the roll panel + entry selector at the top of each step
 function renderStepRoller(stepKey,arr){
   const dice=getStepRollDice(stepKey);
-  const roll=S.creation.rolls[stepKey];
+  let roll=S.creation.rolls[stepKey];
+  // Discard a stored roll whose dice no longer match the current expectation
+  // (e.g. a stale d8+d8 personality roll after the fix that uses the archetype's
+  // d10+d10). Keeps the picker honest after data/code updates.
+  if(roll&&(roll.dice.length!==dice.length||roll.dice.some((d,i)=>d!==dice[i]))){
+    delete S.creation.rolls[stepKey];save();roll=null;
+  }
   let h=`<div class="card-sm" style="background:var(--surface)"><div class="label">Step Roll</div>`;
   h+=`<div class="flex-row mb-2" style="flex-wrap:wrap;gap:6px">`;
   h+=`<button class="btn btn-primary btn-sm" onclick="rollStep('${stepKey}')">${roll?'Re-roll':'Roll'} ${dice.join(' ')}</button>`;
@@ -1497,7 +1503,7 @@ function renderStepRoller(stepKey,arr){
   if(roll){
     h+=`<div class="flex-row mb-1" style="gap:6px;flex-wrap:wrap">${roll.dice.map((d,i)=>`<span class="die-badge ${d}">${d}=${roll.values[i]}</span>`).join('')}</div>`;
     const sel=selectableValuesFromRoll(roll.values).filter(s=>s.value>=1&&s.value<=arr.length);
-    h+=`<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Click a value to pick that entry:</div>`;
+    h+=`<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Click a value to pick that entry — or use the dropdown above for entries the roll didn't reach (#${arr.length} requires both dice ${dice[dice.length-1]||''} to land at max).</div>`;
     h+=`<div style="display:flex;flex-wrap:wrap;gap:4px">${sel.map(s=>`<button class="btn btn-secondary btn-xs" onclick="pickEntryByValue('${stepKey}',${arr===BACKGROUNDS?'BACKGROUNDS':arr===POWER_SOURCES?'POWER_SOURCES':arr===ARCHETYPES?'ARCHETYPES':'PERSONALITIES'},${s.value})">${esc(s.label)} → ${esc(arr[s.value-1]?.name||'?')}</button>`).join('')}</div>`;
   }
   h+=`</div>`;
