@@ -1157,7 +1157,7 @@ function getStepRollDice(stepKey){
   if(stepKey==='background')return['d8','d8'];
   if(stepKey==='powerSource'){const bg=findById(BACKGROUNDS,S.creation.background.id);return bg?bg.nextDice.slice():['d8','d8'];}
   if(stepKey==='archetype'){const ps=findById(POWER_SOURCES,S.creation.powerSource.id);return ps?ps.archetypeDice.slice():['d8','d8'];}
-  if(stepKey==='personality')return['d8','d8'];
+  if(stepKey==='personality'){const ar=findById(ARCHETYPES,S.creation.archetype.id);return ar&&ar.personalityDice?ar.personalityDice.slice():['d10','d10'];}
   return[];
 }
 // Assignment pool: the dice you ASSIGN to powers/qualities in the step's body
@@ -3011,6 +3011,15 @@ function boostHinderModSize(v){
   if(v<=11)return 3;
   return 4;
 }
+// Some abilities create a die-sized bonus/penalty instead of a flat mod
+// (e.g. "Boost yourself, applying that bonus as a die"). Same brackets.
+function boostHinderDieSize(v){
+  if(v<=0)return null;
+  if(v<=3)return 'd6';
+  if(v<=7)return 'd8';
+  if(v<=11)return 'd10';
+  return 'd12';
+}
 function actionOutcomeText(action,v){
   if(action==='overcome'){
     if(v>=12)return `Succeeds beyond expectations (${v}) — bonus side effect`;
@@ -3021,8 +3030,16 @@ function actionOutcomeText(action,v){
   }
   if(action==='attack')return `Deal ${v} damage to target`;
   if(action==='defend')return `Reduce next incoming damage by ${v}`;
-  if(action==='boost'){const m=boostHinderModSize(v);return m?`Create a +${m} bonus`:'No bonus created';}
-  if(action==='hinder'){const m=boostHinderModSize(v);return m?`Create a −${m} penalty`:'No penalty created';}
+  if(action==='boost'){
+    const m=boostHinderModSize(v),d=boostHinderDieSize(v);
+    if(!m)return 'No bonus created';
+    return `Create a +${m} bonus (or ${d} for die-based abilities)`;
+  }
+  if(action==='hinder'){
+    const m=boostHinderModSize(v),d=boostHinderDieSize(v);
+    if(!m)return 'No penalty created';
+    return `Create a −${m} penalty (or ${d} for die-based abilities)`;
+  }
   if(action==='recover')return `Recover ${v} Health (or remove a status condition rated ≤${v})`;
   return '';
 }
