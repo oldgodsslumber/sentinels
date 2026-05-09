@@ -2992,6 +2992,7 @@ function rollPool(){
   ];
   arr.sort((a,b)=>a.roll-b.roll);arr[0].slot='min';arr[1].slot='mid';arr[2].slot='max';
   S.dice.results=arr;
+  resolveEffect();
   save();renderDice();renderHeroDiceSidebar();
 }
 function resolveEffect(){
@@ -3002,13 +3003,27 @@ function resolveEffect(){
   if(S.dice.penalty)v-=Math.abs(S.dice.penalty.value);
   S.dice.modifiedEffect=Math.max(0,v);
 }
+// Boost/Hinder mod size by effect-die value, per rulebook p.26.
+function boostHinderModSize(v){
+  if(v<=0)return 0;
+  if(v<=3)return 1;
+  if(v<=7)return 2;
+  if(v<=11)return 3;
+  return 4;
+}
 function actionOutcomeText(action,v){
-  if(action==='overcome')return v>=11?`Major Success (${v}+) — bonus side effect`:v>=8?`Success (${v}) — no twist`:v>=4?`Partial — minor twist (${v})`:`Failure or major twist (${v})`;
+  if(action==='overcome'){
+    if(v>=12)return `Succeeds beyond expectations (${v}) — bonus side effect`;
+    if(v>=8)return `Succeeds (${v}) — no twist`;
+    if(v>=4)return `Succeeds with a minor twist (${v})`;
+    if(v>=1)return `Fails, or succeeds with a major twist (${v})`;
+    return `Action utterly fails (${v})`;
+  }
   if(action==='attack')return `Deal ${v} damage to target`;
-  if(action==='defend')return `Reduce next damage by ${v}`;
-  if(action==='boost')return `+${v<=3?'d6':v<=7?'d8':v<=11?'d10':'d12'} bonus`;
-  if(action==='hinder')return `−${v<=3?'d6':v<=7?'d8':v<=11?'d10':'d12'} penalty`;
-  if(action==='recover')return `Heal ${v} HP (or remove status equal to ${v})`;
+  if(action==='defend')return `Reduce next incoming damage by ${v}`;
+  if(action==='boost'){const m=boostHinderModSize(v);return m?`Create a +${m} bonus`:'No bonus created';}
+  if(action==='hinder'){const m=boostHinderModSize(v);return m?`Create a −${m} penalty`:'No penalty created';}
+  if(action==='recover')return `Recover ${v} Health (or remove a status condition rated ≤${v})`;
   return '';
 }
 function renderDicePanel(opts){
@@ -3030,9 +3045,28 @@ function renderDicePanel(opts){
     <button class="roll-btn" onclick="rollPool()">ROLL</button>
   </div>`;
   if(d.results){
+    const action=d.actionType||'attack';
+    const actionName=ACTIONS.find(a=>a.id===action)?.name||'Action';
+    const baseV=d.effectValue||0;
+    const modifiedV=(d.modifiedEffect!=null)?d.modifiedEffect:baseV;
+    const slotLabel=(d.effectDie||'mid').toUpperCase();
     h+=`<div class="card">${d.attachedPowerName?`<div style="font-family:var(--font-title);font-size:22px;color:var(--accent);letter-spacing:1.5px;text-align:center;margin-bottom:6px">${esc(d.attachedPowerName.toUpperCase())}</div>`:''}
       <div class="dice-result">
-        ${d.results.map(r=>`<div class="dr-item"><div class="dr-die">${esc(r.name)} ${r.die}</div><div class="dr-roll">${r.roll}</div><div class="dr-slot">${r.slot.toUpperCase()}</div></div>`).join('')}
+        ${d.results.map(r=>`<div class="dr-item ${d.effectDie===r.slot?'effect':''}" onclick="setEffectDie('${r.slot}')" style="cursor:pointer" title="Tap to use as the effect die"><div class="dr-die">${esc(r.name)} ${r.die}</div><div class="dr-roll">${r.roll}</div><div class="dr-slot">${r.slot.toUpperCase()}</div></div>`).join('')}
+      </div>
+      <div class="label" style="margin-top:10px">Action</div>
+      <div class="flex-row" style="flex-wrap:wrap;gap:4px;margin-bottom:8px">
+        ${ACTIONS.map(a=>`<button class="btn ${action===a.id?'btn-primary':'btn-secondary'} btn-xs" onclick="setDiceAction('${a.id}')">${esc(a.name)}</button>`).join('')}
+      </div>
+      <div class="flex-row" style="flex-wrap:wrap;gap:4px;margin-bottom:8px;align-items:center">
+        <span style="font-size:11px;color:var(--muted);font-family:var(--font-label);text-transform:uppercase;letter-spacing:.5px">Mods:</span>
+        ${d.bonus?`<span class="tag tag-die" style="background:rgba(46,204,113,.25)">+${esc(d.bonus.text)}</span><button class="btn btn-danger btn-xs" onclick="clearMod('bonus')">×</button>`:`<button class="btn btn-secondary btn-xs" onclick="addBonus()">+ Bonus</button>`}
+        ${d.penalty?`<span class="tag tag-die" style="background:rgba(231,76,60,.25)">${esc(d.penalty.text)}</span><button class="btn btn-danger btn-xs" onclick="clearMod('penalty')">×</button>`:`<button class="btn btn-secondary btn-xs" onclick="addPenalty()">− Penalty</button>`}
+      </div>
+      <div class="card-sm" style="background:var(--surface);text-align:center;border-color:var(--accent)">
+        <div style="font-family:var(--font-title);font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:1px">${esc(actionName)} outcome</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${baseV!==modifiedV?`Effect die ${slotLabel}: ${baseV} → ${modifiedV} (after mods)`:`Effect die ${slotLabel}: ${modifiedV}`}</div>
+        <div style="font-size:14px;font-weight:600;margin-top:4px">${esc(actionOutcomeText(action,modifiedV))}</div>
       </div>
     </div>`;
   }
