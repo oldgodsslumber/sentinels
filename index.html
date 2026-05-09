@@ -1486,6 +1486,8 @@ function resetStepSelection(stepKey,id,manual){
   else if(stepKey==='personality')S.creation.personality={id,manualOverride:manual,principleId:null,customQuality:''};
 }
 // Render the roll panel + entry selector at the top of each step
+var _browseAllStep={};
+function toggleBrowseAll(stepKey){_browseAllStep[stepKey]=!_browseAllStep[stepKey];renderCreationStep();}
 function renderStepRoller(stepKey,arr){
   const dice=getStepRollDice(stepKey);
   let roll=S.creation.rolls[stepKey];
@@ -1495,15 +1497,20 @@ function renderStepRoller(stepKey,arr){
   if(roll&&(roll.dice.length!==dice.length||roll.dice.some((d,i)=>d!==dice[i]))){
     delete S.creation.rolls[stepKey];save();roll=null;
   }
+  const expanded=!!_browseAllStep[stepKey];
   let h=`<div class="card-sm" style="background:var(--surface)"><div class="label">Step Roll</div>`;
   h+=`<div class="flex-row mb-2" style="flex-wrap:wrap;gap:6px">`;
   h+=`<button class="btn btn-primary btn-sm" onclick="rollStep('${stepKey}')">${roll?'Re-roll':'Roll'} ${dice.join(' ')}</button>`;
-  h+=`<select onchange="manualSet('${stepKey}',this.value)" style="flex:1;min-width:160px"><option value="">Or manually pick…</option>${arr.map((b,i)=>`<option value="${b.id}">${i+1}. ${esc(b.name)}</option>`).join('')}</select>`;
+  h+=`<button class="btn btn-secondary btn-sm" onclick="toggleBrowseAll('${stepKey}')">${expanded?'Hide list':`Browse all ${arr.length}`}</button>`;
   h+=`</div>`;
+  if(expanded){
+    h+=`<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Tap any entry to pick it directly — overrides any rolled value.</div>`;
+    h+=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${arr.map((b,i)=>`<button class="btn btn-secondary btn-xs" onclick="manualSet('${stepKey}','${b.id}')">${i+1}. ${esc(b.name)}</button>`).join('')}</div>`;
+  }
   if(roll){
     h+=`<div class="flex-row mb-1" style="gap:6px;flex-wrap:wrap">${roll.dice.map((d,i)=>`<span class="die-badge ${d}">${d}=${roll.values[i]}</span>`).join('')}</div>`;
     const sel=selectableValuesFromRoll(roll.values).filter(s=>s.value>=1&&s.value<=arr.length);
-    h+=`<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Click a value to pick that entry — or use the dropdown above for entries the roll didn't reach (#${arr.length} requires both dice ${dice[dice.length-1]||''} to land at max).</div>`;
+    h+=`<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Click a value to pick that entry — or use “Browse all ${arr.length}” for entries the roll didn't reach (#${arr.length} requires both dice ${dice[dice.length-1]||''} to land at max).</div>`;
     h+=`<div style="display:flex;flex-wrap:wrap;gap:4px">${sel.map(s=>`<button class="btn btn-secondary btn-xs" onclick="pickEntryByValue('${stepKey}',${arr===BACKGROUNDS?'BACKGROUNDS':arr===POWER_SOURCES?'POWER_SOURCES':arr===ARCHETYPES?'ARCHETYPES':'PERSONALITIES'},${s.value})">${esc(s.label)} → ${esc(arr[s.value-1]?.name||'?')}</button>`).join('')}</div>`;
   }
   h+=`</div>`;
