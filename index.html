@@ -1791,7 +1791,8 @@ function renderAbilityPicker(label,abilityRefs,onClick,extraNote){
     const slotsHTML=abilitySlotsHTML(a.text,sel?a:null,powers,allQuals,{
       power:a.onPowerSlot.replace(/"/g,'&quot;'),
       quality:a.onQualitySlot.replace(/"/g,'&quot;'),
-      pq:a.onPQSlot.replace(/"/g,'&quot;')
+      pq:a.onPQSlot.replace(/"/g,'&quot;'),
+      element:(a.onElementSlot||'').replace(/"/g,'&quot;')
     });
     return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
       <div onclick="${onClick(a.name).replace(/"/g,'&quot;')}" style="cursor:pointer">
@@ -1841,10 +1842,10 @@ function stepPowerSource(){
         </div>`;
       }).join('')}`:''}
       ${item.yellowAbilities.length?`<div class="label mt-3">Pick 2 Yellow Abilities <span class="text-muted" style="font-weight:400;text-transform:none;font-size:11px">(each using a different power) · ${c.yellowAbilities.length}/2</span></div>
-        ${renderAbilityPicker('yellow',item.yellowAbilities.map(a=>({...a,picked:!!c.yellowAbilities.find(x=>x.name===a.name),customName:c.yellowAbilities.find(x=>x.name===a.name)?.customName||'',powerSlot:c.yellowAbilities.find(x=>x.name===a.name)?.powerSlot||'',qualitySlot:c.yellowAbilities.find(x=>x.name===a.name)?.qualitySlot||'',onCustomName:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','customName',this.value)`,onPowerSlot:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,onQualitySlot:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,onPQSlot:`setPSYellowAbilityPQ('${a.name.replace(/'/g,"\\'")}',this.value)`})),
+        ${renderAbilityPicker('yellow',item.yellowAbilities.map(a=>({...a,picked:!!c.yellowAbilities.find(x=>x.name===a.name),customName:c.yellowAbilities.find(x=>x.name===a.name)?.customName||'',powerSlot:c.yellowAbilities.find(x=>x.name===a.name)?.powerSlot||'',qualitySlot:c.yellowAbilities.find(x=>x.name===a.name)?.qualitySlot||'',elementSlot:c.yellowAbilities.find(x=>x.name===a.name)?.elementSlot||'',onCustomName:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','customName',this.value)`,onPowerSlot:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,onQualitySlot:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,onPQSlot:`setPSYellowAbilityPQ('${a.name.replace(/'/g,"\\'")}',this.value)`,onElementSlot:`setPSYellowAbilityField('${a.name.replace(/'/g,"\\'")}','elementSlot',this.value)`})),
           name=>`togglePSYellowAbility('${name.replace(/'/g,"\\'")}')`)}`:''}
       ${item.greenAbilities.length?`<div class="label mt-3">Pick 1 Green Ability</div>
-        ${renderAbilityPicker('green',item.greenAbilities.map(a=>({...a,picked:c.greenAbility?.name===a.name,customName:c.greenAbility?.customName||'',powerSlot:c.greenAbility?.powerSlot||'',qualitySlot:c.greenAbility?.qualitySlot||'',onCustomName:`setPSGreenField('customName',this.value)`,onPowerSlot:`setPSGreenField('powerSlot',this.value)`,onQualitySlot:`setPSGreenField('qualitySlot',this.value)`,onPQSlot:`setPSGreenPQ(this.value)`})),
+        ${renderAbilityPicker('green',item.greenAbilities.map(a=>({...a,picked:c.greenAbility?.name===a.name,customName:c.greenAbility?.customName||'',powerSlot:c.greenAbility?.powerSlot||'',qualitySlot:c.greenAbility?.qualitySlot||'',elementSlot:c.greenAbility?.elementSlot||'',onCustomName:`setPSGreenField('customName',this.value)`,onPowerSlot:`setPSGreenField('powerSlot',this.value)`,onQualitySlot:`setPSGreenField('qualitySlot',this.value)`,onPQSlot:`setPSGreenPQ(this.value)`,onElementSlot:`setPSGreenField('elementSlot',this.value)`})),
           name=>`setPSGreenAbility('${name.replace(/'/g,"\\'")}')`)}`:''}
       <div class="card-sm mt-3" style="background:var(--surface);font-size:12px"><b>Next:</b> Roll ${diceBadgeRow(item.archetypeDice)} for archetype selection.</div>
     </div>`;
@@ -1939,7 +1940,7 @@ function stepArchetype(){
         </div>`;
       }).join('')}`:''}
       ${item.greenAbilities.list.length?`<div class="label mt-3">Green Abilities (pick ${item.greenAbilities.pick})</div>${item.greenAbilities.note?`<div class="mb-1" style="font-size:11px;color:var(--muted)">${esc(item.greenAbilities.note)}</div>`:''}
-        ${item.greenAbilities.list.map(a=>{const sel=c.greenAbilities.find(x=>x.name===a.name)||a.required;const selObj=c.greenAbilities.find(x=>x.name===a.name);const slots=abilitySlotsHTML(a.text,selObj,pickedPowersForArchSlot(),pickedQualitiesForCreationSlot(),{power:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,quality:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,pq:`setArchGreenPQ('${a.name.replace(/'/g,"\\'")}',this.value)`});return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
+        ${item.greenAbilities.list.map(a=>{const sel=c.greenAbilities.find(x=>x.name===a.name)||a.required;const selObj=c.greenAbilities.find(x=>x.name===a.name);const slots=abilitySlotsHTML(a.text,selObj,pickedPowersForArchSlot(),pickedQualitiesForCreationSlot(),{power:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,quality:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,pq:`setArchGreenPQ('${a.name.replace(/'/g,"\\'")}',this.value)`,element:`setArchGreenField('${a.name.replace(/'/g,"\\'")}','elementSlot',this.value)`});return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
           <div onclick="${a.required?'':`toggleArchGreenAbility('${a.name.replace(/'/g,"\\'")}')`}" style="${a.required?'':'cursor:pointer'}">
             <div class="ab-name">${esc(a.name)} <span class="tag tag-${abilityTypeTag(a.type)}">${esc(abilityTypeLabel(a.type))}</span> ${a.required?'<span class="tag tag-die">required</span>':''} ${sel?'<span class="text-accent">✓</span>':''}</div>
             <div class="ab-text">${esc(a.text)}</div>
@@ -1950,7 +1951,7 @@ function stepArchetype(){
           </div>`:''}
         </div>`;}).join('')}`:''}
       ${item.yellowAbilities.list.length?`<div class="label mt-3">Yellow Abilities (pick ${item.yellowAbilities.pick})</div>${item.yellowAbilities.note?`<div class="mb-1" style="font-size:11px;color:var(--muted)">${esc(item.yellowAbilities.note)}</div>`:''}
-        ${item.yellowAbilities.list.map(a=>{const sel=c.yellowAbilities.find(x=>x.name===a.name);const slots=abilitySlotsHTML(a.text,sel,pickedPowersForArchSlot(),pickedQualitiesForCreationSlot(),{power:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,quality:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,pq:`setArchYellowPQ('${a.name.replace(/'/g,"\\'")}',this.value)`});return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
+        ${item.yellowAbilities.list.map(a=>{const sel=c.yellowAbilities.find(x=>x.name===a.name);const slots=abilitySlotsHTML(a.text,sel,pickedPowersForArchSlot(),pickedQualitiesForCreationSlot(),{power:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','powerSlot',this.value)`,quality:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','qualitySlot',this.value)`,pq:`setArchYellowPQ('${a.name.replace(/'/g,"\\'")}',this.value)`,element:`setArchYellowField('${a.name.replace(/'/g,"\\'")}','elementSlot',this.value)`});return `<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''}">
           <div onclick="toggleArchYellowAbility('${a.name.replace(/'/g,"\\'")}')" style="cursor:pointer">
             <div class="ab-name">${esc(a.name)} <span class="tag tag-${abilityTypeTag(a.type)}">${esc(abilityTypeLabel(a.type))}</span> ${sel?'<span class="text-accent">✓</span>':''}</div>
             <div class="ab-text">${esc(a.text)}</div>
@@ -1988,11 +1989,8 @@ function stepPersonality(){
         <div class="card-sm" style="text-align:center;background:rgba(241,196,15,.1);border-color:var(--yellow)"><div style="font-size:10px;color:var(--yellow);font-family:var(--font-label)">YELLOW</div><div class="die-badge ${item.statusDice.yellow}" style="margin-top:4px">${item.statusDice.yellow}</div></div>
         <div class="card-sm" style="text-align:center;background:rgba(231,76,60,.1);border-color:var(--red)"><div style="font-size:10px;color:var(--red);font-family:var(--font-label)">RED</div><div class="die-badge ${item.statusDice.red}" style="margin-top:4px">${item.statusDice.red}</div></div>
       </div>
-      <div class="label">Principle Category</div>
-      <div class="mb-2"><span class="tag tag-die">${esc(item.principleCat)}</span></div>
-      <div class="label">Pick a Principle</div>
-      <div class="mb-2">${principleOptions(item.principleCat).map(p=>`<div class="game-opt ${c.principleId===p.id?'selected':''}" onclick="setPersPrinciple('${p.id}')"><div class="opt-title">${esc(p.name)}</div><div class="opt-desc"><b>Minor:</b> ${esc(p.minor)}</div><div class="opt-stats">Ability: ${esc(p.ability)}</div></div>`).join('')||'<div class="text-muted">No principles for this category — pick from any other.</div>'}</div>
       <div class="form-group"><label>Custom Quality (based on your hero's backstory) — gets ${item.customQualityDie}</label><input type="text" value="${esc(c.customQuality)}" oninput="setPersCustomQuality(this.value)" placeholder="e.g., Time-Lost Sheriff, Underground Connections"></div>
+      <div class="text-muted" style="font-size:11px">Personality contributes status dice, an Out ability, and your custom quality. Principles come from your Background and Archetype.</div>
     </div>`;
   } else {
     h+='<div class="text-muted" style="font-size:13px">Roll the d12 above (or pick manually) to see your Personality.</div>';
@@ -2073,7 +2071,8 @@ function stepRedAbilities(){
       const slots=abilitySlotsHTML(a.text,sel,pickedPowersForRedSlot(),pickedQualitiesForCreationSlot(),{
         power:`setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','powerSlot',this.value)`,
         quality:`setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','qualitySlot',this.value)`,
-        pq:`setRedPQ('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}',this.value)`
+        pq:`setRedPQ('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}',this.value)`,
+        element:`setRedField('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}','elementSlot',this.value)`
       });
       h+=`<div class="ability-card" style="${sel?'border-color:var(--accent);background:rgba(255,58,76,.08)':''};${eligible?'':'pointer-events:none'}">
         <div onclick="toggleExtraRed('${esc(key)}','${esc(a.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
@@ -2239,11 +2238,9 @@ function stepRetcon(){
   } else if(r.type==='change_principle'){
     const pBg=c.background.principleId?findById(PRINCIPLES,c.background.principleId):null;
     const pAr=c.archetype.principleId?findById(PRINCIPLES,c.archetype.principleId):null;
-    const pPe=c.personality.principleId?findById(PRINCIPLES,c.personality.principleId):null;
     const sources=[
       {key:'background',label:'Background',cur:pBg},
-      {key:'archetype', label:'Archetype', cur:pAr},
-      {key:'personality',label:'Personality',cur:pPe}
+      {key:'archetype', label:'Archetype', cur:pAr}
     ].filter(x=>x.cur);
     h+=`<div class="card-sm"><div class="label">Change a principle</div>
       <div class="form-group"><label>Which principle?</label><select onchange="setRetconField('source',this.value)"><option value="">— pick —</option>${sources.map(s=>`<option value="${s.key}" ${r.source===s.key?'selected':''}>${esc(s.label)}: ${esc(s.cur.name)} (${esc(s.cur.cat)})</option>`).join('')}</select></div>
@@ -2261,7 +2258,8 @@ function stepRetcon(){
         const slots=abilitySlotsHTML(a.text,r.red||{},pickedPowersForRedSlot(),pickedQualitiesForCreationSlot(),{
           power:`setRetconRedField('powerSlot',this.value)`,
           quality:`setRetconRedField('qualitySlot',this.value)`,
-          pq:`setRetconRedPQ(this.value)`
+          pq:`setRetconRedPQ(this.value)`,
+          element:`setRetconRedField('elementSlot',this.value)`
         });
         return `<div class="text-muted" style="font-size:11px;margin-bottom:6px">${esc(a.text)}</div>
           <div class="form-group"><label>Custom Name</label><input type="text" value="${esc(r.red?.customName||'')}" oninput="setRetconRedField('customName',this.value)" placeholder="your hero's flavor"></div>
@@ -2357,12 +2355,14 @@ function stepFinishing(){
       <b>Archetype:</b> ${esc(ARCHETYPES.find(b=>b.id===S.creation.archetype.id)?.name||'—')}<br>
       <b>Personality:</b> ${esc(PERSONALITIES.find(b=>b.id===S.creation.personality.id)?.name||'—')}<br>
       <b>Powers:</b> ${S.creation.powerSource.powers.map(p=>`${esc(p.customName)} (${p.die})`).join(', ')||'—'}<br>
+      <b>Qualities:</b> ${(()=>{const qs=[];S.creation.background.qualities.filter(q=>q&&!q.startsWith('{')).forEach(q=>qs.push(`${q} (${S.creation.background.qualityDice[q]||'d8'})`));S.creation.archetype.extraQualities.forEach(q=>qs.push(`${q} (${S.creation.archetype.qualityDice[q]||'d8'})`));const pe=findById(PERSONALITIES,S.creation.personality.id);if(S.creation.personality.customQuality)qs.push(`${S.creation.personality.customQuality} (${pe?.customQualityDie||'d4'})`);return esc(qs.join(', ')||'—');})()}<br>
+      <b>Principles:</b> ${(()=>{const ps=[];if(S.creation.background.principleId){const p=findById(PRINCIPLES,S.creation.background.principleId);if(p)ps.push(`${p.name} (Background)`);}if(S.creation.archetype.principleId){const p=findById(PRINCIPLES,S.creation.archetype.principleId);if(p)ps.push(`${p.name} (Archetype)`);}return esc(ps.join(', ')||'—');})()}<br>
       <b>Health:</b> ${(()=>{const p=getHealthPieces();const total=p.redVal+p.bestVal+(S.creation.healthD4Value||0);return S.creation.healthD4Value?total:'(roll d4 in Step 7)';})()}
     </div></div>`;
 }
 
 function abilityTypeFull(t){return t==='A'?'action':t==='R'?'reaction':'inherent';}
-function buildHeroAbility(tblAbility,zone,source,customName,powerSlotPowerId,qualitySlotName){
+function buildHeroAbility(tblAbility,zone,source,customName,powerSlotPowerId,qualitySlotName,elementSlotName){
   return {
     id:'a_'+uid(),
     name:customName||tblAbility.name,
@@ -2373,6 +2373,7 @@ function buildHeroAbility(tblAbility,zone,source,customName,powerSlotPowerId,qua
     text:tblAbility.text,
     powerSlot:powerSlotPowerId||null,
     qualitySlot:qualitySlotName||null,
+    elementSlot:elementSlotName||null,
     source
   };
 }
@@ -2385,9 +2386,9 @@ function finishCreation(){
   const pe=findById(PERSONALITIES,c.personality.id);
   // Principles
   const principles=[];
+  // Heroes have exactly two principles: one from Background, one from Archetype (rulebook p.43).
   if(c.background.principleId){const p=findById(PRINCIPLES,c.background.principleId);if(p)principles.push({...p,source:'background'});}
   if(c.archetype.principleId){const p=findById(PRINCIPLES,c.archetype.principleId);if(p)principles.push({...p,source:'archetype'});}
-  if(c.personality.principleId){const p=findById(PRINCIPLES,c.personality.principleId);if(p)principles.push({...p,source:'personality'});}
   // Qualities — assigned dice from background, plus archetype extras + personality custom
   const qualities=[];
   c.background.qualities.forEach(q=>{if(q&&!q.startsWith('{')){qualities.push({name:q,die:c.background.qualityDice[q]||'d8',source:'background'});}});
@@ -2410,19 +2411,19 @@ function finishCreation(){
   const abilities=[];
   // Power Source — yellow + green
   if(ps){
-    c.powerSource.yellowAbilities.forEach(sel=>{const a=ps.yellowAbilities.find(x=>x.name===sel.name);if(a)abilities.push(buildHeroAbility(a,'yellow','power_source',sel.customName,sel.powerSlot,sel.qualitySlot));});
-    if(c.powerSource.greenAbility){const a=ps.greenAbilities.find(x=>x.name===c.powerSource.greenAbility.name);if(a)abilities.push(buildHeroAbility(a,'green','power_source',c.powerSource.greenAbility.customName,c.powerSource.greenAbility.powerSlot,c.powerSource.greenAbility.qualitySlot));}
+    c.powerSource.yellowAbilities.forEach(sel=>{const a=ps.yellowAbilities.find(x=>x.name===sel.name);if(a)abilities.push(buildHeroAbility(a,'yellow','power_source',sel.customName,sel.powerSlot,sel.qualitySlot,sel.elementSlot));});
+    if(c.powerSource.greenAbility){const a=ps.greenAbilities.find(x=>x.name===c.powerSource.greenAbility.name);if(a)abilities.push(buildHeroAbility(a,'green','power_source',c.powerSource.greenAbility.customName,c.powerSource.greenAbility.powerSlot,c.powerSource.greenAbility.qualitySlot,c.powerSource.greenAbility.elementSlot));}
   }
   // Archetype — green + yellow (auto-add required greens)
   if(ar){
-    ar.greenAbilities.list.forEach(a=>{if(a.required)abilities.push(buildHeroAbility(a,'green','archetype','',null,null));});
-    c.archetype.greenAbilities.forEach(sel=>{const a=ar.greenAbilities.list.find(x=>x.name===sel.name);if(a&&!a.required)abilities.push(buildHeroAbility(a,'green','archetype',sel.customName,sel.powerSlot,sel.qualitySlot));});
-    c.archetype.yellowAbilities.forEach(sel=>{const a=ar.yellowAbilities.list.find(x=>x.name===sel.name);if(a)abilities.push(buildHeroAbility(a,'yellow','archetype',sel.customName,sel.powerSlot,sel.qualitySlot));});
+    ar.greenAbilities.list.forEach(a=>{if(a.required)abilities.push(buildHeroAbility(a,'green','archetype','',null,null,null));});
+    c.archetype.greenAbilities.forEach(sel=>{const a=ar.greenAbilities.list.find(x=>x.name===sel.name);if(a&&!a.required)abilities.push(buildHeroAbility(a,'green','archetype',sel.customName,sel.powerSlot,sel.qualitySlot,sel.elementSlot));});
+    c.archetype.yellowAbilities.forEach(sel=>{const a=ar.yellowAbilities.list.find(x=>x.name===sel.name);if(a)abilities.push(buildHeroAbility(a,'yellow','archetype',sel.customName,sel.powerSlot,sel.qualitySlot,sel.elementSlot));});
   }
   // Red abilities
   c.extraRedAbilities.forEach(sel=>{
     const list=RED_ABILITIES_BY_CATEGORY[sel.category];if(!list)return;
-    const a=list.find(x=>x.name===sel.name);if(a)abilities.push(buildHeroAbility(a,'red','red_pick',sel.customName,sel.powerSlot,sel.qualitySlot));
+    const a=list.find(x=>x.name===sel.name);if(a)abilities.push(buildHeroAbility(a,'red','red_pick',sel.customName,sel.powerSlot,sel.qualitySlot,sel.elementSlot));
   });
   // Out ability from personality
   if(pe?.outAbility)abilities.push({id:'out_'+pe.id,zone:'out',type:'action',action:'boost',die:'free',name:`${pe.name} (Out)`,baseName:`${pe.name} (Out)`,text:pe.outAbility,powerSlot:null,source:'personality'});
@@ -2454,7 +2455,7 @@ function finishCreation(){
     }
   } else if(r.type==='extra_red'&&r.red?.category&&r.red?.name){
     const list=RED_ABILITIES_BY_CATEGORY[r.red.category];
-    if(list){const a=list.find(x=>x.name===r.red.name);if(a)abilities.push(buildHeroAbility(a,'red','retcon',r.red.customName,r.red.powerSlot,r.red.qualitySlot));}
+    if(list){const a=list.find(x=>x.name===r.red.name);if(a)abilities.push(buildHeroAbility(a,'red','retcon',r.red.customName,r.red.powerSlot,r.red.qualitySlot,r.red.elementSlot));}
   }
   // Health — recomputed from the (possibly retcon-modified) powers/qualities/redDie
   const athPwr=powers.filter(p=>p.categoryId==='athletic'&&p.die);
@@ -2495,13 +2496,27 @@ function renderAbilityText(a){
   // [power/quality] — prefer power if assigned, else quality
   const pq=powerName||qualityName;
   if(pq)t=t.replace(/\[power\/quality\]/g,pq);
-  // Named Hallmark tokens auto-resolve to the owned power's name (if owned).
+  // [element/energy] / [energy/element] / [elemental/energy], with or without
+  // the "you have a related power for" qualifier.
+  if(a.elementSlot){
+    t=t.replace(/\[(?:element\/energy|energy\/element|elemental\/energy)(?:\s+you have a related power for)?\]/g,a.elementSlot);
+  }
   if(S.hero){
+    // Named Hallmark tokens (bracketed form) auto-resolve to the owned power's name.
     const named=[['[Inventions]','inventions'],['[Signature Vehicle]','signature_vehicle'],['[Signature Weaponry]','signature_weaponry'],['[Power Suit]','power_suit']];
     for(const [tok,id] of named){
       if(t.indexOf(tok)<0)continue;
       const p=S.hero.powers.find(x=>x.id===id);
       if(p)t=t.split(tok).join(p.customName||p.baseName);
+    }
+    // Bare-name substitution: any power whose customName differs from baseName
+    // gets its baseName replaced (single pass; longest names first to avoid
+    // sub-name collisions).
+    const renamed=S.hero.powers.filter(p=>p.customName&&p.customName!==p.baseName).slice().sort((x,y)=>y.baseName.length-x.baseName.length);
+    if(renamed.length){
+      const pattern=renamed.map(p=>p.baseName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+      const re=new RegExp('\\b('+pattern+')\\b','g');
+      t=t.replace(re,m=>{const p=renamed.find(x=>x.baseName===m);return p?p.customName:m;});
     }
   }
   return t;
@@ -2537,9 +2552,24 @@ function getAbilityQualityCats(text){
   return null;
 }
 function isPQAbility(text){return !!text&&text.includes('[power/quality]');}
+// [element/energy] picker — detects the various spellings, with or without
+// the "you have a related power for" qualifier.
+var ELEMENT_TOKEN_RE=/\[(?:element\/energy|energy\/element|elemental\/energy)(?:\s+you have a related power for)?\]/;
+function getAbilityElementInfo(text){
+  if(!text||!ELEMENT_TOKEN_RE.test(text))return null;
+  return {restrictToOwned:/you have a related power for/.test(text)};
+}
+function elementChoiceList(restrictToOwned){
+  const all=POWERS.filter(p=>p.cat==='elemental');
+  if(!restrictToOwned)return all.map(p=>p.name);
+  const ownedIds=new Set([...S.creation.powerSource.powers,...S.creation.archetype.powers].map(p=>p.id));
+  return all.filter(p=>ownedIds.has(p.id)).map(p=>p.name);
+}
 // Discriminated union describing what slot picker (if any) the ability needs.
 function getAbilitySlotInfo(text){
   if(isPQAbility(text))return {kind:'pq'};
+  const elem=getAbilityElementInfo(text);
+  if(elem)return {kind:'element',restrictToOwned:elem.restrictToOwned};
   const pCat=getAbilityPowerCat(text);
   if(pCat)return {kind:'powerCat',powerCat:pCat};
   if(text&&text.includes('[power]'))return {kind:'power'};
@@ -2587,6 +2617,12 @@ function abilitySlotsHTML(text,sel,powers,allQuals,setters){
     const lbl=cats.length?`Quality Used (${cats.join(' or ')})`:'Quality Used';
     if(!filtered.length)return `<div class="text-muted" style="font-size:11px">Needs ${cats.length?cats.join(' or ')+' ':''}quality — pick one in an earlier step.</div>`;
     return `<div class="form-group" style="margin-bottom:0"><label>${esc(lbl)}</label><select onchange="${setters.quality}"><option value="">— pick quality —</option>${filtered.map(q=>`<option value="${esc(q.value)}" ${sel.qualitySlot===q.value?'selected':''}>${esc(q.label)}</option>`).join('')}</select></div>`;
+  }
+  if(info.kind==='element'){
+    const choices=elementChoiceList(info.restrictToOwned);
+    const lbl=info.restrictToOwned?'Element / Energy (must own a related power)':'Element / Energy';
+    if(!choices.length)return `<div class="text-muted" style="font-size:11px">${info.restrictToOwned?'Pick an elemental power in an earlier step.':'No elemental options available.'}</div>`;
+    return `<div class="form-group" style="margin-bottom:0"><label>${esc(lbl)}</label><select onchange="${setters.element}"><option value="">— pick element —</option>${choices.map(n=>`<option value="${esc(n)}" ${sel.elementSlot===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div>`;
   }
   return '';
 }
